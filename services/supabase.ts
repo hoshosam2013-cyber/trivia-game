@@ -76,3 +76,39 @@ export async function fetchBoardFromStock(
 
   return { questions, errors };
 }
+
+
+// ✅ يرجّع عدد الجولات المتبقية لكل فئة (حسب الإيميل)
+export async function fetchRemainingRounds(categoryName: string) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user?.email) {
+    // إذا ما في مستخدم، اعتبر 0 أو رجّع قيمة افتراضية حسب لعبتك
+    return 0;
+  }
+
+  const userEmail = user.email;
+
+  // إذا عندك RPC جاهز اسمه get_remaining_rounds_per_category
+  // عدّل أسماء البراميترات بالضبط حسب اللي عاملها عندك في Supabase
+  const { data, error } = await supabase.rpc("get_remaining_rounds_per_category", {
+    p_user_id: userEmail,         // عمود user_id عندك صار ايميل
+    p_category_name: categoryName // اسم الفئة
+  });
+
+  if (error) {
+    console.error("fetchRemainingRounds error:", error);
+    return 0;
+  }
+
+  // حسب تصميم RPC:
+  // ممكن يرجع رقم مباشر، أو object، أو array
+  // خلينا نتعامل مع أغلب الحالات:
+  if (typeof data === "number") return data;
+  if (Array.isArray(data) && data[0]?.remaining !== undefined) return data[0].remaining;
+  if (data?.remaining !== undefined) return data.remaining;
+
+  return 0;
+}
